@@ -1,0 +1,28 @@
+# 환경 변수 파일
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# 종속성
+node_modules/
+
+# 로그
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 빌드 결과
+dist/
+build/
+
+# 캐시
+.npm
+.yarn
+
+# 시스템 파일
+.DS_Store
+Thumbs.db
