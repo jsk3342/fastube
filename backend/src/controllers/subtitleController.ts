@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, RequestHandler } from "express";
 import { SubtitleService } from "../services/subtitleService";
 import { VideoInfoService } from "../services/videoInfoService";
 import { UrlValidator } from "../utils/urlValidator";
@@ -21,7 +21,7 @@ export class SubtitleController {
   /**
    * 유튜브 자막 추출 API 핸들러
    */
-  public extractSubtitles = async (
+  public extractSubtitles: RequestHandler = async (
     req: Request,
     res: Response,
     next: NextFunction
@@ -73,7 +73,7 @@ export class SubtitleController {
   /**
    * 비디오 정보 API 핸들러
    */
-  public getVideoInfo = async (
+  public getVideoInfo: RequestHandler = async (
     req: Request,
     res: Response,
     next: NextFunction

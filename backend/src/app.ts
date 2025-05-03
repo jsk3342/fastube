@@ -5,6 +5,8 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import bodyParser from "body-parser";
 import path from "path";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./swagger";
 import subtitleRoutes from "./routes/subtitleRoutes";
 import healthRoutes from "./routes/healthRoutes";
 import { errorHandler } from "./middleware/errorHandler";
@@ -25,6 +27,13 @@ app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Swagger UI 설정
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
 
 // 속도 제한 설정
 const limiter = rateLimit({
@@ -58,6 +67,6 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // 오류 처리 미들웨어 (항상 마지막에 추가)
-app.use(errorHandler);
+app.use((err, req, res, next) => errorHandler(err, req, res, next));
 
 export default app;

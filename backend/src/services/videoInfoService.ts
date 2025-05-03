@@ -1,5 +1,6 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { Page, ElementHandle } from "puppeteer";
 import { Logger } from "../utils/logger";
 
 puppeteer.use(StealthPlugin());
@@ -49,24 +50,27 @@ export class VideoInfoService {
         const titleElement = document.querySelector(
           "h1.ytd-video-primary-info-renderer"
         );
-        const title = titleElement
-          ? titleElement.textContent.trim()
-          : "제목 없음";
+        const title =
+          titleElement && titleElement.textContent
+            ? titleElement.textContent.trim()
+            : "제목 없음";
 
         // 채널명
         const channelElement = document.querySelector("#channel-name a");
-        const channelName = channelElement
-          ? channelElement.textContent.trim()
-          : "채널명 없음";
+        const channelName =
+          channelElement && channelElement.textContent
+            ? channelElement.textContent.trim()
+            : "채널명 없음";
 
         // 썸네일 URL
         const thumbnailUrl = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
 
         // 영상 길이
         const durationElement = document.querySelector(".ytp-time-duration");
-        const durationText = durationElement
-          ? durationElement.textContent
-          : "0:00";
+        const durationText =
+          durationElement && durationElement.textContent
+            ? durationElement.textContent
+            : "0:00";
         const durationParts = durationText.split(":").map(Number);
         let duration = 0;
         if (durationParts.length === 3) {
@@ -79,7 +83,7 @@ export class VideoInfoService {
         }
 
         // 사용 가능한 자막 언어 (YouTube UI 구조에 따라 구현 필요)
-        const availableLanguages = [];
+        const availableLanguages: string[] = [];
 
         return {
           title,
@@ -98,7 +102,7 @@ export class VideoInfoService {
       );
 
       return videoInfo;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`비디오 정보 추출 오류: ${error.message}`);
       throw error;
     } finally {
@@ -111,14 +115,16 @@ export class VideoInfoService {
   /**
    * 사용 가능한 자막 언어 목록 추출
    */
-  private async getAvailableSubtitleLanguages(page: any): Promise<string[]> {
+  private async getAvailableSubtitleLanguages(page: Page): Promise<string[]> {
     try {
       // 설정 버튼 클릭
       const settingsButton = await page.$(".ytp-settings-button");
       if (!settingsButton) return ["ko", "en"]; // 기본값
 
       await settingsButton.click();
-      await page.waitForTimeout(1000);
+      await page.evaluate(
+        () => new Promise((resolve) => setTimeout(resolve, 1000))
+      );
 
       // 자막 메뉴 찾기
       const subtitleMenuItem = await page.evaluateHandle(() => {
@@ -127,9 +133,9 @@ export class VideoInfoService {
         );
         return menuItems.find(
           (item) =>
-            item.textContent.includes("자막") ||
-            item.textContent.includes("Subtitles") ||
-            item.textContent.includes("CC")
+            item.textContent?.includes("자막") ||
+            item.textContent?.includes("Subtitles") ||
+            item.textContent?.includes("CC")
         );
       });
 
@@ -138,35 +144,42 @@ export class VideoInfoService {
         return ["ko", "en"]; // 기본값
       }
 
-      await subtitleMenuItem.click();
-      await page.waitForTimeout(1000);
-
-      // 언어 목록 추출
-      const languages = await page.evaluate(() => {
-        const menuItems = Array.from(
-          document.querySelectorAll(".ytp-menuitem")
+      const elementExists = await page.evaluate((el) => !!el, subtitleMenuItem);
+      if (elementExists) {
+        await (subtitleMenuItem as ElementHandle<Element>).click();
+        await page.evaluate(
+          () => new Promise((resolve) => setTimeout(resolve, 1000))
         );
-        return menuItems
-          .map((item) => {
-            const text = item.textContent.trim();
 
-            // 언어 코드 매핑 (간소화된 버전)
-            if (text.includes("한국어")) return "ko";
-            if (text.includes("영어")) return "en";
-            if (text.includes("일본어")) return "ja";
-            if (text.includes("중국어")) return "zh";
-            if (text.includes("스페인어")) return "es";
+        // 언어 목록 추출
+        const languages = await page.evaluate(() => {
+          const menuItems = Array.from(
+            document.querySelectorAll(".ytp-menuitem")
+          );
+          return menuItems
+            .map((item) => {
+              const text = item.textContent ? item.textContent.trim() : "";
 
-            return null;
-          })
-          .filter(Boolean);
-      });
+              // 언어 코드 매핑 (간소화된 버전)
+              if (text.includes("한국어")) return "ko";
+              if (text.includes("영어")) return "en";
+              if (text.includes("일본어")) return "ja";
+              if (text.includes("중국어")) return "zh";
+              if (text.includes("스페인어")) return "es";
 
-      // 메뉴 닫기
-      await page.click("body");
+              return null;
+            })
+            .filter(Boolean) as string[];
+        });
 
-      return languages.length > 0 ? languages : ["ko", "en"];
-    } catch (error) {
+        // 메뉴 닫기
+        await page.click("body");
+
+        return languages.length > 0 ? languages : ["ko", "en"];
+      }
+
+      return ["ko", "en"];
+    } catch (error: any) {
       this.logger.error(`자막 언어 목록 추출 오류: ${error.message}`);
       return ["ko", "en"]; // 오류 발생 시 기본값 반환
     }
